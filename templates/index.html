@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dance Movement Comparison</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .video-container {
+            width: 100%;
+            margin-bottom: 20px;
+            position: relative;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        #videoFeed {
+            width: 100%;
+            display: block;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-top: 20px;
+        }
+        .status-item {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .status-value {
+            font-size: 1.2em;
+        }
+        .error {
+            color: #d32f2f;
+        }
+        .accuracy {
+            color: #388e3c;
+        }
+        .average {
+            color: #1976d2;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-waiting {
+            background-color: #ff9800;
+        }
+        .status-comparing {
+            background-color: #4CAF50;
+        }
+        .status-completed {
+            background-color: #2196F3;
+        }
+        .status-error {
+            background-color: #f44336;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            display: none;
+        }
+        .results.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dance Movement Comparison</h1>
+        
+        <div class="video-container">
+            <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startComparison()">Start Comparison</button>
+            <button id="stopBtn" onclick="stopComparison()" disabled>Stop Comparison</button>
+            <button onclick="window.location.href='/hand_mudra'" style="background-color: #2196F3;">Hand Mudra Detection</button>
+        </div>
+        
+        <div class="status">
+            <h2>Status</h2>
+            <div class="status-item">
+                <span class="status-label">Current Error:</span>
+                <span class="status-value error" id="errorValue">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Current Accuracy:</span>
+                <span class="status-value accuracy" id="accuracyValue">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span class="status-value">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="statusValue">Waiting to start</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <h2>Comparison Results</h2>
+            <div class="status-item">
+                <span class="status-label">Average Error:</span>
+                <span class="status-value average" id="averageError">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Final Accuracy:</span>
+                <span class="status-value accuracy" id="finalAccuracy">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let statusValue = document.getElementById('statusValue');
+        let errorValue = document.getElementById('errorValue');
+        let accuracyValue = document.getElementById('accuracyValue');
+        let startBtn = document.getElementById('startBtn');
+        let stopBtn = document.getElementById('stopBtn');
+        let statusIndicator = document.getElementById('statusIndicator');
+        let results = document.getElementById('results');
+        let averageError = document.getElementById('averageError');
+        let finalAccuracy = document.getElementById('finalAccuracy');
+        
+        let totalError = 0;
+        let errorCount = 0;
+        
+        function updateStatusIndicator(status) {
+            statusIndicator.className = 'status-indicator';
+            switch(status) {
+                case 'WAITING':
+                    statusIndicator.classList.add('status-waiting');
+                    break;
+                case 'COMPARING':
+                    statusIndicator.classList.add('status-comparing');
+                    break;
+                case 'COMPLETED':
+                    statusIndicator.classList.add('status-completed');
+                    break;
+                case 'ERROR':
+                    statusIndicator.classList.add('status-error');
+                    break;
+            }
+        }
+        
+        function startComparison() {
+            fetch('/start_comparison')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'started') {
+                        statusValue.textContent = "Comparison started";
+                        updateStatusIndicator('COMPARING');
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                        results.classList.remove('show');
+                        totalError = 0;
+                        errorCount = 0;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error starting comparison:", error);
+                    statusValue.textContent = "Error starting comparison";
+                    updateStatusIndicator('ERROR');
+                });
+        }
+        
+        function stopComparison() {
+            fetch('/stop_comparison')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'stopped') {
+                        statusValue.textContent = "Comparison stopped";
+                        updateStatusIndicator('COMPLETED');
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        results.classList.add('show');
+                        
+                        // Calculate and display average error
+                        const avgError = errorCount > 0 ? totalError / errorCount : 0;
+                        averageError.textContent = `${avgError.toFixed(2)}%`;
+                        finalAccuracy.textContent = `${(100 - avgError).toFixed(2)}%`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error stopping comparison:", error);
+                    statusValue.textContent = "Error stopping comparison";
+                    updateStatusIndicator('ERROR');
+                });
+        }
+        
+        // Update status periodically
+        setInterval(() => {
+            fetch('/get_status')
+                .then(response => response.json())
+                .then(data => {
+                    errorValue.textContent = `${data.error.toFixed(2)}%`;
+                    accuracyValue.textContent = `${(data.accuracy * 100).toFixed(2)}%`;
+                    statusValue.textContent = data.status;
+                    updateStatusIndicator(data.status);
+                    
+                    // Accumulate error for average calculation
+                    if (data.status === 'COMPARING' && data.error > 0) {
+                        totalError += data.error;
+                        errorCount++;
+                    }
+                })
+                .catch(error => console.error("Error getting status:", error));
+        }, 1000);
+    </script>
+</body>
+</html> 

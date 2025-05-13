@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hand Mudra Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .video-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #backButton {
+            background-color: #f44336;
+        }
+        #backButton:hover {
+            background-color: #da190b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hand Mudra Detection</h1>
+        <div class="video-container">
+            <img src="{{ url_for('hand_mudra_feed') }}" width="640" height="480">
+        </div>
+        <div class="controls">
+            <button onclick="startDetection()">Start Detection</button>
+            <button onclick="stopDetection()">Stop Detection</button>
+            <button id="backButton" onclick="window.location.href='/'">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        function startDetection() {
+            fetch('/start_hand_mudra')
+                .then(response => response.json())
+                .then(data => console.log(data));
+        }
+
+        function stopDetection() {
+            fetch('/stop_hand_mudra')
+                .then(response => response.json())
+                .then(data => console.log(data));
+        }
+    </script>
+</body>
+</html> 
